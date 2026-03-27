@@ -1,93 +1,298 @@
-# simplarr
+# Simplerr 🎬
 
+![simplerr](https://img.shields.io/badge/simplerr-tui-39FF14?style=flat-square&logoColor=black&labelColor=0D0D0D) ![rr](https://img.shields.io/badge/rr--native-stack-FFB300?style=flat-square&labelColor=0D0D0D) ![Spectre.Console](https://img.shields.io/badge/Spectre.Console-powered-00CFFF?style=flat-square&labelColor=0D0D0D)
 
+> A terminal UI for managing your self-hosted media suite — WSL2, Docker,
+> and all your *arr services from a single keyboard-driven dashboard.
 
-## Getting started
+Built for the *arr stack. Fits right in beside Sonarr, Radarr, Prowlarr.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+---
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## What It Does
 
-## Add your files
+- **WSL2 controls** — Start, stop and restart your WSL2 distro from Windows
+- **Container dashboard** — Live status of all your Docker containers
+- **Resource gauges** — Staggered CPU and memory stats per container
+- **Container actions** — Start, stop, restart any container instantly
+- **Log viewer** — Tail and filter logs per container without leaving the TUI
+- **Cross-platform** — Runs on Windows (with or without WSL2) and Linux natively
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+---
 
+## Screenshots
+
+```text
+╔══════════════════════════════════════════════════════════════════╗
+║                    Simplerr  Media Suite Manager                 ║
+╠══════════════════════════════════════════════════════════════════╣
+║  ● WSL: Running — Ubuntu-Media                                   ║
+║  [ F1 ] Start   [ F2 ] Stop   [ F3 ] Restart                     ║
+╠══════════════════════════════════════════════════════════════════╣
+║  #   Service              Status     CPU              Memory     ║
+║  ├─────────────────────────────────────────────────────────────   ║
+║  1   📺 Plex Media Server  ● Running  ██░░░░░░░░░░ 12%  █░░ 1.2GB║
+║  2   📡 Sonarr (TV)        ● Running  █░░░░░░░░░░░  4%  █░░ 300MB║
+║> 3   🎬 Radarr (Movies)    ● Running  █░░░░░░░░░░░  3%  █░░ 280MB║
+║  4   🔽 qBittorrent        ○ Stopped                             ║
+║  5   🔍 Prowlarr           ● Running  ░░░░░░░░░░░░  1%  ░░░ 120MB║
+╠══════════════════════════════════════════════════════════════════╣
+║  Selected: 🎬 Radarr (Movies)                                    ║
+║  [ S ] Start   [ T ] Stop   [ R ] Restart   [ L ] Logs           ║
+╠══════════════════════════════════════════════════════════════════╣
+║  [↑↓] Navigate  [F1] WSL Start  [F2] WSL Stop  [F3] WSL Restart  ║
+║  [S] Start  [T] Stop  [R] Restart  [L] Logs  [Q] Quit            ║
+╚══════════════════════════════════════════════════════════════════╝
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/phellams/simplarr.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/phellams/simplarr/-/settings/integrations)
+## Requirements
 
-## Collaborate with your team
+### Windows
+- Windows 10 21H2 or later / Windows 11
+- [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) (optional,
+  but required for WSL controls)
+- Docker running inside WSL2 **or** Docker Desktop
+- .NET 8 runtime (not required if using the self-contained binary)
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Linux
+- Docker installed and running
+- Current user in the `docker` group  
+  (`sudo usermod -aG docker $USER` then log out and back in)
+- .NET 8 runtime (not required if using the self-contained binary)
 
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+### Option A — Installer Script (Recommended)
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/phellams/simplerr/main/install.ps1 | iex
+```
+
+**Linux (bash):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/phellams/simplerr/main/install.sh | bash
+```
+
+### Option B — Manual
+
+1. Download the latest release for your platform from the
+   [Releases](https://github.com/phellams/simplerr/releases) page
+2. Extract and place `simplerr.exe` (Windows) or `simplerr` (Linux)
+   somewhere on your PATH
+3. Run it
+
+### Option C — Build From Source
+
+```bash
+git clone https://github.com/phellams/simplerr.git
+cd simplerr
+
+# Windows
+./build-windows.sh
+
+# Linux
+./build-linux.sh
+```
+
+Binaries output to `./dist/`.
+
+---
+
+## Configuration
+
+On first run, Simplerr creates a default config file at:
+
+| Platform | Path |
+|---|---|
+| Windows | `C:\Users\<you>\.phellams\simplerr\config.json` |
+| Linux | `/home/<you>/.phellams/simplerr/config.json` |
+
+### Full Config Reference
+
+```json
+{
+  "wsl": {
+    "enabled": true,
+    "distroName": "Ubuntu-Media"
+  },
+  "docker": {
+    "composePath": "/home/user/media-stack",
+    "pollIntervalSeconds": 5,
+    "statsPollIntervalSeconds": 3
+  },
+  "services": [
+    {
+      "name": "plex",
+      "icon": "📺",
+      "friendlyName": "Plex Media Server"
+    },
+    {
+      "name": "sonarr",
+      "icon": "📡",
+      "friendlyName": "Sonarr (TV)"
+    },
+    {
+      "name": "radarr",
+      "icon": "🎬",
+      "friendlyName": "Radarr (Movies)"
+    },
+    {
+      "name": "qbittorrent",
+      "icon": "🔽",
+      "friendlyName": "qBittorrent"
+    },
+    {
+      "name": "prowlarr",
+      "icon": "🔍",
+      "friendlyName": "Prowlarr"
+    }
+  ]
+}
+```
+
+### Config Options
+
+#### `wsl`
+| Field | Type | Description |
+|---|---|---|
+| `enabled` | bool | Show WSL controls. Set `false` on Linux or if not using WSL2 |
+| `distroName` | string | Exact name of your WSL2 distro (`wsl --list` to find it) |
+
+#### `docker`
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `composePath` | string | — | Path to your `docker-compose.yml` directory (informational for now) |
+| `pollIntervalSeconds` | int | `5` | How often to refresh container list |
+| `statsPollIntervalSeconds` | int | `3` | Delay between staggered stats polls per container |
+
+#### `services`
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Container name (partial match supported) |
+| `icon` | string | Emoji or character shown in the dashboard |
+| `friendlyName` | string | Human-readable label shown in the UI |
+
+> **Tip:** If `services` is empty, Simplerr shows **all** running containers
+> rather than filtering. Useful for exploring a new setup.
+
+---
+
+## Keyboard Reference
+
+### Global
+| Key | Action |
+|---|---|
+| `↑` / `↓` | Navigate container list |
+| `Q` | Quit Simplerr |
+| `?` | Show help overlay *(coming soon)* |
+
+### WSL Controls *(Windows only)*
+| Key | Action |
+|---|---|
+| `F1` | Start WSL distro |
+| `F2` | Stop WSL (shutdown) |
+| `F3` | Restart WSL distro |
+
+### Container Actions
+| Key | Action |
+|---|---|
+| `S` | Start selected container |
+| `T` | Stop selected container |
+| `R` | Restart selected container |
+| `L` | Open log viewer |
+
+### Log Viewer
+| Key | Action |
+|---|---|
+| `F` | Set filter string |
+| `C` | Clear filter |
+| `Q` / `Esc` | Return to dashboard |
+
+---
+
+## Typical Media Stack Setup
+
+Simplerr is designed around a Docker Compose media suite running inside WSL2.
+A typical stack it manages well:
+
+| Service | Role |
+|---|---|
+| [Plex](https://www.plex.tv/) | Media server and streaming |
+| [Sonarr](https://sonarr.tv/) | TV show management |
+| [Radarr](https://radarr.video/) | Movie management |
+| [Prowlarr](https://github.com/Prowlarr/Prowlarr) | Indexer manager |
+| [qBittorrent](https://www.qbittorrent.org/) | Torrent client |
+| [Overseerr](https://overseerr.dev/) | Request management |
+| [Tdarr](https://home.tdarr.io/) | Media transcoding |
+
+Add any of these to your `services` config array and Simplerr will pick
+them up automatically by name.
+
+---
+
+## Troubleshooting
+
+### "No containers found"
+- Confirm Docker is running: `docker ps` in a terminal
+- On Windows, confirm Docker is accessible from PowerShell (not just WSL)
+- Check your `services[].name` values match your actual container names
+  (`docker ps --format "{{.Names}}"` to list them)
+
+### WSL controls not showing
+- Confirm `wsl.enabled` is `true` in your config
+- Confirm Simplerr is running on Windows, not inside WSL itself
+- Run `wsl --list` in PowerShell to verify your distro name matches config
+
+### Stats showing `--`
+- Stats populate with a slight delay due to staggered polling
+- If they never appear, confirm `docker stats --no-stream <id>` works
+  in your terminal
+
+### Permission denied (Linux)
+- Add your user to the docker group:
+  ```bash
+  sudo usermod -aG docker $USER
+  ```
+  Then log out and back in.
+
+---
 
 ## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+
+- [ ] Help overlay (`?`)
+- [ ] Docker Compose `up` / `down` support
+- [ ] Notification on container crash
+- [ ] Config editor inside the TUI
+- [ ] Community service presets (media, dev, home-lab)
+- [ ] .NET 10 + AOT build target
+- [ ] macOS support
+
+---
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+PRs welcome. The codebase is intentionally small and layered — adding a new
+platform or service backend means implementing one interface.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+```text
+IWslService   → new platform host support
+IDockerService → new container runtime support
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+---
+
+## Name
+
+*Simplerr* is a nod to the \*arr stack (Sonarr, Radarr, Prowlarr...).
+It does one thing — makes managing all of them simpler.
+
+---
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT — do whatever you like with it.
