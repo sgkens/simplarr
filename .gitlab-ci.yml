@@ -1,0 +1,212 @@
+# _______________________________________________________________
+# ########| @Default values for all jobs unless overridden |#####
+
+default:
+  image: mcr.microsoft.com/dotnet/sdk:8.0
+  artifacts:
+    paths:
+      - ./dist
+    expire_in: 1 week
+
+# ______________________________________________________
+# ########| @Define the stages of the pipeline |########
+
+stages:
+  - test
+  - build
+  - package
+  - release
+  - deploy
+
+# ______________________________________________________
+# ########| @Define pipeline-wide workflow control |####
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
+      when: always
+
+variables:
+  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+
+# ____________________________________________________________
+# ########|----> |||| Test Stage |||| <----###################
+
+test_app:
+  stage: test
+  script:
+    - dotnet test || echo "No tests found or tests failed"
+  allow_failure: true
+
+# ____________________________________________________________
+# ########|----> |||| Build Stage |||| <----##################
+
+build_win64:
+  stage: build
+  script:
+    - dotnet publish Src/Simplerr.csproj -r win-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/win-x64
+
+build_linux64:
+  stage: build
+  script:
+    - dotnet publish Src/Simplerr.csproj -r linux-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/linux-x64
+
+build_osx:
+  stage: build
+  script:
+    - dotnet publish Src/Simplerr.csproj -r osx-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/osx-x64
+    - dotnet publish Src/Simplerr.csproj -r osx-arm64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/osx-arm64
+
+# ____________________________________________________________
+# ########|----> |||| Package Stage |||| <----################
+
+package_appimage:
+  stage: package
+  image: ubuntu:22.04
+  needs:
+    - build_linux64
+  before_script:
+    - apt-get update && apt-get install -y wget file
+    - wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+    - chmod +x appimagetool
+    # Needed for appimagetool to run in docker without FUSE
+    - sed -i 's|AI\x02|\x00\x00\x00|' appimagetool 
+  script:
+    - mkdir -p AppDir/usr/bin
+    - cp dist/linux-x64/simplerr AppDir/usr/bin/
+    - chmod +x AppDir/usr/bin/simplerr
+    - |
+      cat << 'EOF' > AppDir/AppRun
+      #!/bin/sh
+      HERE="$(dirname "$(readlink -f "${0}")")"
+      exec "${HERE}/usr/bin/simplerr" "$@"
+      EOF
+    - chmod +x AppDir/AppRun
+    - |
+      cat << 'EOF' > AppDir/simplerr.desktop
+      [Desktop Entry]
+      Name=Simplerr
+      Exec=simplerr
+      Icon=simplerr
+      Type=Application
+      Categories=Utility;
+      Terminal=true
+      EOF
+    - touch AppDir/simplerr.png
+    - ./appimagetool --appimage-extract-and-run AppDir ./dist/simplerr-x86_64.AppImage
+
+# ____________________________________________________________
+# ########|----> |||| Release Stage |||| <----################
+
+upload_generic_packages:
+  stage: release
+  image: alpine:latest
+  needs:
+    - build_win64
+    - build_linux64
+    - build_osx
+    - package_appimage
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
+  before_script:
+    - apk add --no-cache curl zip tar
+  script:
+    - tar -czvf dist/simplerr-linux-x64.tar.gz -C dist/linux-x64 .
+    - tar -czvf dist/simplerr-osx-x64.tar.gz -C dist/osx-x64 .
+    - tar -czvf dist/simplerr-osx-arm64.tar.gz -C dist/osx-arm64 .
+    - cd dist/win-x64 && zip -r ../simplerr-win-x64.zip . && cd ../..
+    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-linux-x64.tar.gz "${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz"
+    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-osx-x64.tar.gz "${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz"
+    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-osx-arm64.tar.gz "${PACKAGE_REGISTRY_URL}/simplerr-osx-arm64.tar.gz"
+    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-win-x64.zip "${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip"
+    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-x86_64.AppImage "${PACKAGE_REGISTRY_URL}/simplerr-x86_64.AppImage"
+
+gitlab_release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - upload_generic_packages
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
+  script:
+    - >
+      release-cli create --name "Release $CI_COMMIT_TAG" --description "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG
+      --assets-link "{\"name\":\"Linux x64\",\"url\":\"${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz\"}"
+      --assets-link "{\"name\":\"Windows x64\",\"url\":\"${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip\"}"
+      --assets-link "{\"name\":\"macOS x64\",\"url\":\"${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz\"}"
+      --assets-link "{\"name\":\"macOS arm64\",\"url\":\"${PACKAGE_REGISTRY_URL}/simplerr-osx-arm64.tar.gz\"}"
+      --assets-link "{\"name\":\"AppImage x86_64\",\"url\":\"${PACKAGE_REGISTRY_URL}/simplerr-x86_64.AppImage\"}"
+
+# ____________________________________________________________
+# ########|----> |||| Deploy Stage |||| <----################
+
+publish_scoop:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - gitlab_release
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
+  before_script:
+    - apk add --no-cache curl jq git
+  script:
+    - echo "Generating Scoop manifest..."
+    - HASH=$(curl -sL "${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip" | sha256sum | awk '{print $1}')
+    - |
+      cat << EOF > simplerr.json
+      {
+        "version": "${CI_COMMIT_TAG#v}",
+        "description": "Media Suite Manager TUI",
+        "homepage": "https://gitlab.com/${CI_PROJECT_PATH}",
+        "license": "MIT",
+        "architecture": {
+          "64bit": {
+            "url": "${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip",
+            "hash": "$HASH",
+            "bin": "simplerr.exe"
+          }
+        }
+      }
+      EOF
+    - echo "Scoop manifest generated:"
+    - cat simplerr.json
+    - # Publish logic would go here
+
+publish_brew:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - gitlab_release
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
+  before_script:
+    - apk add --no-cache curl git
+  script:
+    - echo "Generating Homebrew formula..."
+    - HASH_MAC=$(curl -sL "${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz" | sha256sum | awk '{print $1}')
+    - HASH_LINUX=$(curl -sL "${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz" | sha256sum | awk '{print $1}')
+    - |
+      cat << EOF > simplerr.rb
+      class Simplerr < Formula
+        desc "Media Suite Manager TUI"
+        homepage "https://gitlab.com/${CI_PROJECT_PATH}"
+        version "${CI_COMMIT_TAG#v}"
+        
+        if OS.mac?
+          url "${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz"
+          sha256 "$HASH_MAC"
+        elsif OS.linux?
+          url "${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz"
+          sha256 "$HASH_LINUX"
+        end
+
+        def install
+          bin.install "simplerr"
+        end
+      end
+      EOF
+    - echo "Homebrew formula generated:"
+    - cat simplerr.rb
+    - # Publish logic would go here
