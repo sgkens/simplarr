@@ -14,6 +14,7 @@ public class LogViewer
     private readonly List<string> _lines = [];
     private string _filter = string.Empty;
     private bool _isInputting = false;
+    private readonly AutoResetEvent _redrawEvent = new(false);
 
     public LogViewer(
         IDockerService docker,
@@ -34,14 +35,26 @@ public class LogViewer
 
         var logTask = Task.Run(() =>
         {
-            foreach (var line in _docker.TailLogs(_container.Id, 100, logCts.Token))
+            try
             {
-                lock (_lines)
+                foreach (var line in _docker.TailLogs(_container.Id, 50, logCts.Token))
                 {
-                    _lines.Add(line);
-                    if (_lines.Count > 500)
-                        _lines.RemoveAt(0);
+                    lock (_lines)
+                    {
+                        // Sanitize line to prevent markup crashes
+                        var sanitized = Markup.Remove(line);
+                        _lines.Add(sanitized);
+                        if (_lines.Count > 200)
+                            _lines.RemoveAt(0);
+                    }
+                    _redrawEvent.Set();
                 }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                lock (_lines) _lines.Add($"[red]Log error: {Markup.Escape(ex.Message)}[/]");
+                _redrawEvent.Set();
             }
         }, logCts.Token);
 
@@ -50,13 +63,11 @@ public class LogViewer
             .AutoClear(false)
             .StartAsync(async ctx =>
             {
-                var renderTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
-
                 var renderTask = Task.Run(async () =>
                 {
                     while (!logCts.IsCancellationRequested)
                     {
-                        await renderTimer.WaitForNextTickAsync(logCts.Token);
+                        WaitHandle.WaitAny([_redrawEvent, logCts.Token.WaitHandle], 500);
                         if (!_isInputting)
                             ctx.UpdateTarget(RenderLogPanel());
                     }
@@ -68,7 +79,7 @@ public class LogViewer
                     {
                         if (!Console.KeyAvailable)
                         {
-                            Thread.Sleep(50);
+                            Thread.Sleep(10);
                             continue;
                         }
 
@@ -77,19 +88,21 @@ public class LogViewer
                         if (key.Key == ConsoleKey.Escape || key.Key == ConsoleKey.Q)
                         {
                             logCts.Cancel();
+                            _redrawEvent.Set();
                         }
                         else if (key.Key == ConsoleKey.F && key.Modifiers == 0)
                         {
                             _isInputting = true;
-                            // Move cursor to bottom and prompt
                             AnsiConsole.Cursor.MoveDown(35);
                             _filter = AnsiConsole.Ask<string>("[bold blue]Filter:[/] ");
                             _isInputting = false;
-                            AnsiConsole.Clear(); // Refresh after input
+                            AnsiConsole.Clear(); 
+                            _redrawEvent.Set();
                         }
                         else if (key.Key == ConsoleKey.C)
                         {
                             lock (_lines) _filter = string.Empty;
+                            _redrawEvent.Set();
                         }
                     }
                 }, logCts.Token);
@@ -113,7 +126,8 @@ public class LogViewer
                     .ToList();
         }
 
-        var visibleLines = filtered.TakeLast(30).ToList();
+        // Limit visible lines to keep UI snappy
+        var visibleLines = filtered.TakeLast(20).ToList();
 
         var content = visibleLines.Count > 0
             ? string.Join("\n", visibleLines.Select(Markup.Escape))
@@ -131,6 +145,7 @@ public class LogViewer
                 ),
                 Border = BoxBorder.Rounded,
                 BorderStyle = Style.Parse("blue"),
+                Expand = true,
             },
             new Markup(
                 $"Filter: {filterLabel}   " +

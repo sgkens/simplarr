@@ -18,6 +18,7 @@ public class Dashboard
     private readonly IDockerService _docker;
     private readonly RuntimeEnvironment _env;
     private CancellationTokenSource? _dashboardCts;
+    private readonly AutoResetEvent _redrawEvent = new(false);
 
     public Dashboard(
         AppState state,
@@ -80,6 +81,7 @@ public class Dashboard
             .SplitRows(
                 new Layout("header").Size(3),
                 new Layout("wsl").Size(_wsl.IsSupported ? 5 : 0),
+                new Layout("global").Size(3),
                 new Layout("containers"),
                 new Layout("actions").Size(5),
                 new Layout("hints").Size(3)
@@ -95,7 +97,45 @@ public class Dashboard
         {
             Border = BoxBorder.Rounded,
             BorderStyle = Style.Parse("grey"),
+            Expand = true,
         };
+
+    private IRenderable RenderGlobalStats()
+    {
+        var stats = _state.Stats.Values.ToList();
+        var totalCpu = stats.Sum(s => s.CpuPercent);
+        var totalMem = stats.Sum(s => s.MemoryUsedBytes);
+        var totalLimit = stats.Sum(s => s.MemoryLimitBytes);
+
+        var memLabel = totalLimit > 0
+            ? $"[white]Memory:[/] {FormatBytes(totalMem)} / {FormatBytes(totalLimit)} ({(double)totalMem / totalLimit * 100:F1}%)"
+            : "[white]Memory:[/] --";
+
+        var cpuLabel = $"[white]CPU:[/] {totalCpu:F1}%";
+
+        return new Panel(
+            new Markup($"{cpuLabel}   {memLabel}")
+        )
+        {
+            Header = new PanelHeader(" Global Stack Resources "),
+            Border = BoxBorder.Rounded,
+            BorderStyle = Style.Parse("cyan"),
+            Expand = true,
+        };
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        double val = bytes;
+        int unitIndex = 0;
+        while (val >= 1024 && unitIndex < units.Length - 1)
+        {
+            val /= 1024;
+            unitIndex++;
+        }
+        return $"{val:F1}{units[unitIndex]}";
+    }
 
     private IRenderable RenderWslPanel()
     {
@@ -133,6 +173,7 @@ public class Dashboard
             Header = new PanelHeader(" WSL "),
             Border = BoxBorder.Rounded,
             BorderStyle = Style.Parse("blue"),
+            Expand = true,
         };
     }
 
@@ -141,8 +182,9 @@ public class Dashboard
         var table = new Table()
             .BorderColor(Color.Grey)
             .Border(TableBorder.Rounded)
-            .AddColumn(new TableColumn("[grey]#[/]").Width(6))
-            .AddColumn(new TableColumn("[white]Service[/]"))
+            .Expand()
+            .AddColumn(new TableColumn("[grey]#[/]").Width(4).RightAligned())
+            .AddColumn(new TableColumn("[white]Service[/]").NoWrap())
             .AddColumn(new TableColumn("[white]Status[/]").Width(12))
             .AddColumn(new TableColumn("[white]CPU[/]").Width(22))
             .AddColumn(new TableColumn("[white]Memory[/]").Width(30));
@@ -162,6 +204,7 @@ public class Dashboard
             {
                 Header = new PanelHeader(" Containers "),
                 Border = BoxBorder.Rounded,
+                Expand = true,
             };
         }
 
@@ -208,6 +251,7 @@ public class Dashboard
         {
             Header = new PanelHeader(" Containers "),
             Border = BoxBorder.Rounded,
+            Expand = true,
         };
     }
 
@@ -241,6 +285,7 @@ public class Dashboard
             Header = new PanelHeader(" Actions "),
             Border = BoxBorder.Rounded,
             BorderStyle = Style.Parse("yellow"),
+            Expand = true,
         };
     }
 
@@ -268,14 +313,13 @@ public class Dashboard
             .Overflow(VerticalOverflow.Ellipsis)
             .StartAsync(async ctx =>
             {
-                // Render tick
-                var renderTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
-
                 var renderTask = Task.Run(async () =>
                 {
                     while (!dashCt.IsCancellationRequested)
                     {
-                        await renderTimer.WaitForNextTickAsync(dashCt);
+                        // Wait for redraw event or periodic timeout (500ms)
+                        WaitHandle.WaitAny([_redrawEvent, dashCt.WaitHandle], 500);
+                        
                         ctx.UpdateTarget(BuildLiveDisplay());
                     }
                 }, dashCt);
@@ -287,12 +331,13 @@ public class Dashboard
                     {
                         if (!Console.KeyAvailable)
                         {
-                            Thread.Sleep(50);
+                            Thread.Sleep(10);
                             continue;
                         }
 
                         var key = Console.ReadKey(intercept: true);
                         HandleKey(key, pollCts);
+                        _redrawEvent.Set(); // Trigger immediate redraw
                     }
                 }, dashCt);
 
@@ -377,7 +422,7 @@ public class Dashboard
 
     private async Task WslActionAsync(WslAction action)
     {
-        if (_state.IsBusy) return;
+        if (_state.IsBusy || _state.IsHelpOpen) return;
         _state.SetBusy(true);
 
         var label = action.ToString();
@@ -404,12 +449,13 @@ public class Dashboard
             _state.SetBusy(false);
             await Task.Delay(3000);
             _state.SetStatus(null);
+            _redrawEvent.Set();
         }
     }
 
     private async Task ContainerActionAsync(DockerAction action)
     {
-        if (_state.IsBusy) return;
+        if (_state.IsBusy || _state.IsHelpOpen) return;
 
         var container = _state.SelectedContainer;
         if (container is null) return;
@@ -445,6 +491,7 @@ public class Dashboard
             _state.SetBusy(false);
             await Task.Delay(3000);
             _state.SetStatus(null);
+            _redrawEvent.Set();
         }
     }
 
@@ -474,10 +521,12 @@ public class Dashboard
                 }
 
                 _state.UpdateContainers(filtered);
+                _redrawEvent.Set();
             }
             catch (Exception ex)
             {
                 _state.SetStatus($"[red]Docker poll error: {ex.Message}[/]");
+                _redrawEvent.Set();
             }
 
             await Task.Delay(
@@ -523,7 +572,10 @@ public class Dashboard
                 {
                     var stats = await _docker.GetStatsAsync(container.Id);
                     if (stats is not null)
+                    {
                         _state.UpdateStats(container.Id, stats);
+                        _redrawEvent.Set();
+                    }
                 }
                 catch
                 {
@@ -550,10 +602,12 @@ public class Dashboard
             {
                 var status = _wsl.GetStatus(_config.Wsl.DistroName);
                 _state.UpdateWslStatus(status);
+                _redrawEvent.Set();
             }
             catch
             {
                 _state.UpdateWslStatus(WslStatus.Unknown);
+                _redrawEvent.Set();
             }
 
             await Task.Delay(5000, ct).ConfigureAwait(false);
@@ -574,6 +628,7 @@ public class Dashboard
         if (_wsl.IsSupported)
             layout["wsl"].Update(RenderWslPanel());
 
+        layout["global"].Update(RenderGlobalStats());
         layout["containers"].Update(RenderContainerTable());
         layout["actions"].Update(RenderActionsPanel());
         layout["hints"].Update(RenderHintsBar());
