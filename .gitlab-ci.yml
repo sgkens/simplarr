@@ -28,16 +28,13 @@ workflow:
     - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
       when: always
 
-variables:
-  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-
 # ____________________________________________________________
 # ########|----> |||| Test Stage |||| <----###################
 
 test_app:
   stage: test
   script:
-    - dotnet test || echo "No tests found or tests failed"
+    - "dotnet test || echo \"No tests found or tests failed\""
   allow_failure: true
 
 # ____________________________________________________________
@@ -46,18 +43,18 @@ test_app:
 build_win64:
   stage: build
   script:
-    - dotnet publish Src/Simplerr.csproj -r win-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/win-x64
+    - "dotnet publish Src/Simplerr.csproj -r win-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/win-x64"
 
 build_linux64:
   stage: build
   script:
-    - dotnet publish Src/Simplerr.csproj -r linux-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/linux-x64
+    - "dotnet publish Src/Simplerr.csproj -r linux-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/linux-x64"
 
 build_osx:
   stage: build
   script:
-    - dotnet publish Src/Simplerr.csproj -r osx-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/osx-x64
-    - dotnet publish Src/Simplerr.csproj -r osx-arm64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/osx-arm64
+    - "dotnet publish Src/Simplerr.csproj -r osx-x64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/osx-x64"
+    - "dotnet publish Src/Simplerr.csproj -r osx-arm64 -c Release --self-contained -p:PublishSingleFile=true -o ./dist/osx-arm64"
 
 # ____________________________________________________________
 # ########|----> |||| Package Stage |||| <----################
@@ -68,22 +65,21 @@ package_appimage:
   needs:
     - build_linux64
   before_script:
-    - apt-get update && apt-get install -y wget file
-    - wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
-    - chmod +x appimagetool
-    # Needed for appimagetool to run in docker without FUSE
-    - sed -i 's|AI\x02|\x00\x00\x00|' appimagetool 
+    - "apt-get update && apt-get install -y wget file"
+    - "wget -O appimagetool \"https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage\""
+    - "chmod +x appimagetool"
+    - "sed -i 's|AI\\x02|\\x00\\x00\\x00|' appimagetool"
   script:
-    - mkdir -p AppDir/usr/bin
-    - cp dist/linux-x64/simplerr AppDir/usr/bin/
-    - chmod +x AppDir/usr/bin/simplerr
+    - "mkdir -p AppDir/usr/bin"
+    - "cp dist/linux-x64/simplerr AppDir/usr/bin/"
+    - "chmod +x AppDir/usr/bin/simplerr"
     - |
       cat << 'EOF' > AppDir/AppRun
       #!/bin/sh
       HERE="$(dirname "$(readlink -f "${0}")")"
       exec "${HERE}/usr/bin/simplerr" "$@"
       EOF
-    - chmod +x AppDir/AppRun
+    - "chmod +x AppDir/AppRun"
     - |
       cat << 'EOF' > AppDir/simplerr.desktop
       [Desktop Entry]
@@ -94,8 +90,8 @@ package_appimage:
       Categories=Utility;
       Terminal=true
       EOF
-    - touch AppDir/simplerr.png
-    - ./appimagetool --appimage-extract-and-run AppDir ./dist/simplerr-x86_64.AppImage
+    - "touch AppDir/simplerr.png"
+    - "./appimagetool --appimage-extract-and-run AppDir ./dist/simplerr-x86_64.AppImage"
 
 # ____________________________________________________________
 # ########|----> |||| Release Stage |||| <----################
@@ -111,17 +107,18 @@ upload_generic_packages:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
   before_script:
-    - apk add --no-cache curl zip tar
+    - "apk add --no-cache curl zip tar"
+    - "export PACKAGE_REGISTRY_URL=\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG}\""
   script:
-    - tar -czvf dist/simplerr-linux-x64.tar.gz -C dist/linux-x64 .
-    - tar -czvf dist/simplerr-osx-x64.tar.gz -C dist/osx-x64 .
-    - tar -czvf dist/simplerr-osx-arm64.tar.gz -C dist/osx-arm64 .
-    - cd dist/win-x64 && zip -r ../simplerr-win-x64.zip . && cd ../..
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-linux-x64.tar.gz "${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz"
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-osx-x64.tar.gz "${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz"
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-osx-arm64.tar.gz "${PACKAGE_REGISTRY_URL}/simplerr-osx-arm64.tar.gz"
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-win-x64.zip "${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip"
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/simplerr-x86_64.AppImage "${PACKAGE_REGISTRY_URL}/simplerr-x86_64.AppImage"
+    - "tar -czvf dist/simplerr-linux-x64.tar.gz -C dist/linux-x64 ."
+    - "tar -czvf dist/simplerr-osx-x64.tar.gz -C dist/osx-x64 ."
+    - "tar -czvf dist/simplerr-osx-arm64.tar.gz -C dist/osx-arm64 ."
+    - "cd dist/win-x64 && zip -r ../simplerr-win-x64.zip . && cd ../.."
+    - "curl --header \"JOB-TOKEN: ${CI_JOB_TOKEN}\" --upload-file dist/simplerr-linux-x64.tar.gz \"${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz\""
+    - "curl --header \"JOB-TOKEN: ${CI_JOB_TOKEN}\" --upload-file dist/simplerr-osx-x64.tar.gz \"${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz\""
+    - "curl --header \"JOB-TOKEN: ${CI_JOB_TOKEN}\" --upload-file dist/simplerr-osx-arm64.tar.gz \"${PACKAGE_REGISTRY_URL}/simplerr-osx-arm64.tar.gz\""
+    - "curl --header \"JOB-TOKEN: ${CI_JOB_TOKEN}\" --upload-file dist/simplerr-win-x64.zip \"${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip\""
+    - "curl --header \"JOB-TOKEN: ${CI_JOB_TOKEN}\" --upload-file dist/simplerr-x86_64.AppImage \"${PACKAGE_REGISTRY_URL}/simplerr-x86_64.AppImage\""
 
 gitlab_release:
   stage: release
@@ -130,6 +127,8 @@ gitlab_release:
     - upload_generic_packages
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
+  before_script:
+    - "export PACKAGE_REGISTRY_URL=\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG}\""
   script:
     - >
       release-cli create --name "Release $CI_COMMIT_TAG" --description "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG
@@ -150,10 +149,11 @@ publish_scoop:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
   before_script:
-    - apk add --no-cache curl jq git
+    - "apk add --no-cache curl jq git"
+    - "export PACKAGE_REGISTRY_URL=\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG}\""
   script:
-    - echo "Generating Scoop manifest..."
-    - HASH=$(curl -sL "${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip" | sha256sum | awk '{print $1}')
+    - "echo \"Generating Scoop manifest...\""
+    - "HASH=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip\" | sha256sum | awk '{print $1}')"
     - |
       cat << EOF > simplerr.json
       {
@@ -170,9 +170,7 @@ publish_scoop:
         }
       }
       EOF
-    - echo "Scoop manifest generated:"
-    - cat simplerr.json
-    - # Publish logic would go here
+    - "cat simplerr.json"
 
 publish_brew:
   stage: deploy
@@ -182,11 +180,12 @@ publish_brew:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+/'
   before_script:
-    - apk add --no-cache curl git
+    - "apk add --no-cache curl git"
+    - "export PACKAGE_REGISTRY_URL=\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG}\""
   script:
-    - echo "Generating Homebrew formula..."
-    - HASH_MAC=$(curl -sL "${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz" | sha256sum | awk '{print $1}')
-    - HASH_LINUX=$(curl -sL "${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz" | sha256sum | awk '{print $1}')
+    - "echo \"Generating Homebrew formula...\""
+    - "HASH_MAC=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz\" | sha256sum | awk '{print $1}')"
+    - "HASH_LINUX=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz\" | sha256sum | awk '{print $1}')"
     - |
       cat << EOF > simplerr.rb
       class Simplerr < Formula
@@ -207,6 +206,4 @@ publish_brew:
         end
       end
       EOF
-    - echo "Homebrew formula generated:"
-    - cat simplerr.rb
-    - # Publish logic would go here
+    - "cat simplerr.rb"
