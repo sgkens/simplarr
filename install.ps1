@@ -1,6 +1,6 @@
 # install.ps1
 # Simplerr Windows Installer
-# Usage: irm https://raw.githubusercontent.com/phellams/simplerr/main/install.ps1 | iex
+# Usage: irm https://gitlab.com/phellams/simplerr/-/raw/main/install.ps1 | iex
 
 #Requires -Version 5.1
 Set-StrictMode -Version Latest
@@ -8,7 +8,8 @@ $ErrorActionPreference = "Stop"
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-$Repo = "phellams/simplerr"
+$RepoPath = "phellams/simplerr"
+$ProjectId = "67141434" # Need to verify this ID or use path-based API
 $BinaryName = "simplerr.exe"
 $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\Simplerr"
 $ConfigDir = Join-Path $env:USERPROFILE  ".phellams\simplerr"
@@ -79,73 +80,53 @@ function Invoke-PreflightChecks {
 
     # Internet connectivity
     try {
-        $null = Invoke-WebRequest -Uri "https://github.com" -UseBasicParsing -TimeoutSec 5
+        $null = Invoke-WebRequest -Uri "https://gitlab.com" -UseBasicParsing -TimeoutSec 5
         Write-Success "Internet connectivity OK"
     }
     catch {
-        Write-Fail "Cannot reach GitHub. Check your internet connection."
+        Write-Fail "Cannot reach GitLab. Check your internet connection."
         exit 1
     }
 
-    # Docker (warn only — not hard requirement to install)
+    # Docker
     if (Test-CommandExists "docker") {
         Write-Success "Docker found"
     }
     else {
         Write-Warn "Docker not found on PATH. Simplerr needs Docker to show containers."
-        Write-Warn "Install Docker Desktop or ensure docker.exe is on your PATH."
     }
 
-    # WSL (warn only)
+    # WSL
     if (Test-CommandExists "wsl") {
-        $wslOutput = & wsl --list --quiet 2>$null
-        if ($LASTEXITCODE -eq 0 -and $wslOutput) {
-            Write-Success "WSL2 found with distros available"
-        }
-        else {
-            Write-Warn "WSL is installed but no distros found. WSL controls will be disabled."
-        }
-    }
-    else {
-        Write-Warn "WSL not found. WSL controls will be disabled in Simplerr."
+        Write-Success "WSL found"
     }
 }
 
 # ── Fetch Latest Release ──────────────────────────────────────────────────────
 
 function Get-LatestRelease {
-    Write-Step "Fetching latest release from GitHub..."
+    Write-Step "Fetching latest release from GitLab..."
 
-    $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
-
+    # First get the latest tag
+    $tagsUrl = "https://gitlab.com/api/v4/projects/phellams%2Fsimplerr/repository/tags"
     try {
-        $release = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -Headers @{
-            "User-Agent" = "simplerr-installer"
-            "Accept"     = "application/vnd.github.v3+json"
-        }
+        $tags = Invoke-RestMethod -Uri $tagsUrl -UseBasicParsing
+        $version = $tags[0].name
     }
     catch {
-        Write-Fail "Failed to fetch release info: $_"
+        Write-Fail "Failed to fetch version info: $_"
         exit 1
     }
 
-    $version = $release.tag_name
     Write-Success "Latest version: $version"
 
-    # Find the windows asset
-    $asset = $release.assets | Where-Object {
-        $_.name -like "*win-x64*" -or $_.name -like "*windows*"
-    } | Select-Object -First 1
-
-    if (-not $asset) {
-        Write-Fail "No Windows binary found in release $version."
-        exit 1
-    }
+    $fileName = "simplerr-$version-win-x64.zip"
+    $downloadUrl = "https://gitlab.com/api/v4/projects/phellams%2Fsimplerr/packages/generic/simplarr/$version/$fileName"
 
     return @{
         Version     = $version
-        DownloadUrl = $asset.browser_download_url
-        FileName    = $asset.name
+        DownloadUrl = $downloadUrl
+        FileName    = $fileName
     }
 }
 
@@ -195,37 +176,19 @@ function Install-Simplerr {
 
     $destination = Join-Path $InstallDir $BinaryName
 
-    # Handle file in use
     if (Test-Path $destination) {
-        try {
-            Remove-Item $destination -Force
-        }
-        catch {
-            Write-Fail "Cannot replace existing binary — is Simplerr running?"
-            exit 1
-        }
+        try { Remove-Item $destination -Force } catch { exit 1 }
     }
 
-    # If download was a zip, extract it
-    if ($SourceFile -like "*.zip") {
-        Write-Step "Extracting archive..."
-        $extractDir = Join-Path $env:TEMP "simplerr-extract"
-        Expand-Archive -Path $SourceFile -DestinationPath $extractDir -Force
+    Write-Step "Extracting archive..."
+    $extractDir = Join-Path $env:TEMP "simplerr-extract"
+    Expand-Archive -Path $SourceFile -DestinationPath $extractDir -Force
 
-        $extracted = Get-ChildItem -Path $extractDir -Filter "*.exe" -Recurse |
-        Select-Object -First 1
+    $extracted = Get-ChildItem -Path $extractDir -Filter "*.exe" -Recurse | Select-Object -First 1
+    if (-not $extracted) { exit 1 }
 
-        if (-not $extracted) {
-            Write-Fail "Could not find .exe in archive."
-            exit 1
-        }
-
-        Copy-Item $extracted.FullName -Destination $destination -Force
-        Remove-Item $extractDir -Recurse -Force
-    }
-    else {
-        Copy-Item $SourceFile -Destination $destination -Force
-    }
+    Copy-Item $extracted.FullName -Destination $destination -Force
+    Remove-Item $extractDir -Recurse -Force
 
     Write-Success "Binary installed"
 }
@@ -233,196 +196,50 @@ function Install-Simplerr {
 # ── PATH ──────────────────────────────────────────────────────────────────────
 
 function Add-ToUserPath {
-    $currentPath = [System.Environment]::GetEnvironmentVariable(
-        "PATH",
-        [System.EnvironmentVariableTarget]::User
-    )
-
-    if ($currentPath -like "*$InstallDir*") {
-        Write-Success "PATH already contains install directory"
-        return
-    }
-
-    Write-Step "Adding $InstallDir to user PATH..."
-
-    $newPath = "$currentPath;$InstallDir"
-    [System.Environment]::SetEnvironmentVariable(
-        "PATH",
-        $newPath,
-        [System.EnvironmentVariableTarget]::User
-    )
-
-    # Also update current session
+    $currentPath = [System.Environment]::GetEnvironmentVariable("PATH", [System.EnvironmentVariableTarget]::User)
+    if ($currentPath -like "*$InstallDir*") { return }
+    [System.Environment]::SetEnvironmentVariable("PATH", "$currentPath;$InstallDir", [System.EnvironmentVariableTarget]::User)
     $env:PATH = "$env:PATH;$InstallDir"
-
-    Write-Success "PATH updated"
 }
 
 # ── Default Config ────────────────────────────────────────────────────────────
 
 function New-DefaultConfig {
-    if (-not (Test-Path $ConfigDir)) {
-        New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
-    }
-
+    if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
     $configFile = Join-Path $ConfigDir "config.json"
-
-    if (Test-Path $configFile) {
-        Write-Success "Existing config found — leaving untouched"
-        return
-    }
-
-    Write-Step "Creating default config at $configFile..."
-
-    # Detect WSL distros for a helpful default
-    $distroName = "Ubuntu"
-    if (Test-CommandExists "wsl") {
-        $distros = & wsl --list --quiet 2>$null |
-        Where-Object { $_ -match '\w' } |
-        ForEach-Object { $_.Trim("`0") } |
-        Select-Object -First 1
-
-        if ($distros) { $distroName = $distros }
-    }
+    if (Test-Path $configFile) { return }
 
     $config = @{
-        wsl      = @{
-            enabled    = $true
-            distroName = $distroName
-        }
-        docker   = @{
-            composePath              = ""
-            pollIntervalSeconds      = 5
-            statsPollIntervalSeconds = 3
-        }
+        wsl = @{ enabled = $true; distroName = "Ubuntu" }
+        docker = @{ pollIntervalSeconds = 5; statsPollIntervalSeconds = 3 }
         services = @(
-            @{ name = "plex"; icon = "📺"; friendlyName = "Plex Media Server" }
-            @{ name = "sonarr"; icon = "📡"; friendlyName = "Sonarr (TV)" }
-            @{ name = "radarr"; icon = "🎬"; friendlyName = "Radarr (Movies)" }
-            @{ name = "qbittorrent"; icon = "🔽"; friendlyName = "qBittorrent" }
-            @{ name = "prowlarr"; icon = "🔍"; friendlyName = "Prowlarr" }
+            @{ name = "plex"; icon = "📺"; friendlyName = "Plex" }
+            @{ name = "sonarr"; icon = "📡"; friendlyName = "Sonarr" }
+            @{ name = "radarr"; icon = "🎬"; friendlyName = "Radarr" }
         )
     }
-
-    $config | ConvertTo-Json -Depth 5 |
-    Set-Content -Path $configFile -Encoding UTF8
-
-    Write-Success "Default config created"
-}
-
-# ── Start Menu Shortcut ───────────────────────────────────────────────────────
-
-function New-StartMenuShortcut {
-    Write-Step "Creating Start Menu shortcut..."
-
-    $startMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
-    $shortcutPath = Join-Path $startMenuDir "Simplerr.lnk"
-    $binaryPath = Join-Path $InstallDir $BinaryName
-
-    try {
-        $wshShell = New-Object -ComObject WScript.Shell
-        $shortcut = $wshShell.CreateShortcut($shortcutPath)
-        $shortcut.TargetPath = $binaryPath
-        $shortcut.WorkingDirectory = $InstallDir
-        $shortcut.Description = "Simplerr Media Suite Manager"
-        $shortcut.Save()
-
-        Write-Success "Start Menu shortcut created"
-    }
-    catch {
-        Write-Warn "Could not create Start Menu shortcut (non-fatal): $_"
-    }
-}
-
-# ── Uninstall ─────────────────────────────────────────────────────────────────
-
-function Invoke-Uninstall {
-    Write-Header
-    Write-Host "  Uninstalling Simplerr..." -ForegroundColor Yellow
-    Write-Host ""
-
-    # Remove binary
-    if (Test-Path $InstallDir) {
-        Remove-Item $InstallDir -Recurse -Force
-        Write-Success "Removed $InstallDir"
-    }
-
-    # Remove from PATH
-    $currentPath = [System.Environment]::GetEnvironmentVariable(
-        "PATH",
-        [System.EnvironmentVariableTarget]::User
-    )
-    $newPath = ($currentPath -split ";" |
-        Where-Object { $_ -ne $InstallDir }) -join ";"
-
-    [System.Environment]::SetEnvironmentVariable(
-        "PATH",
-        $newPath,
-        [System.EnvironmentVariableTarget]::User
-    )
-    Write-Success "Removed from PATH"
-
-    # Remove shortcut
-    $shortcutPath = Join-Path $env:APPDATA `
-        "Microsoft\Windows\Start Menu\Programs\Simplerr.lnk"
-
-    if (Test-Path $shortcutPath) {
-        Remove-Item $shortcutPath -Force
-        Write-Success "Removed Start Menu shortcut"
-    }
-
-    Write-Host ""
-    Write-Host "  Config files kept at: $ConfigDir" -ForegroundColor Grey
-    Write-Host "  Delete manually if you want a clean removal." -ForegroundColor Grey
-    Write-Host ""
-    Write-Success "Simplerr uninstalled."
+    $config | ConvertTo-Json -Depth 5 | Set-Content -Path $configFile -Encoding UTF8
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 function Main {
-    param([string]$Mode = "install")
-
     Write-Header
-
-    if ($Mode -eq "uninstall") {
-        Invoke-Uninstall
-        return
-    }
-
     Invoke-PreflightChecks
     Write-Host ""
 
     $release = Get-LatestRelease
-    $tempFile = Invoke-Download `
-        -Url      $release.DownloadUrl `
-        -FileName $release.FileName `
-        -Version  $release.Version
+    $tempFile = Invoke-Download -Url $release.DownloadUrl -FileName $release.FileName -Version $release.Version
 
     Install-Simplerr -SourceFile $tempFile
     Add-ToUserPath
     New-DefaultConfig
-    New-StartMenuShortcut
 
-    # Cleanup temp
     Remove-Item (Split-Path $tempFile) -Recurse -Force -ErrorAction SilentlyContinue
 
     Write-Host ""
-    Write-Host "  ─────────────────────────────────────────" -ForegroundColor Cyan
     Write-Success "Simplerr $($release.Version) installed!"
-    Write-Host ""
-    Write-Host "  Run it:" -ForegroundColor White
-    Write-Host "    simplerr" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  Config:" -ForegroundColor White
-    Write-Host "    $ConfigDir\config.json" -ForegroundColor Cyan
-    Write-Host "  ─────────────────────────────────────────" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Warn "Open a new terminal window for PATH changes to take effect."
-    Write-Host ""
+    Write-Host "Run 'simplerr' in a new terminal."
 }
 
-# ── Entry Point ───────────────────────────────────────────────────────────────
-
-$mode = if ($args -contains "--uninstall") { "uninstall" } else { "install" }
-Main -Mode $mode
+Main

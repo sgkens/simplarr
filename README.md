@@ -2,26 +2,44 @@
 
 ![simplerr](https://img.shields.io/badge/simplerr-tui-39FF14?style=flat-square&logoColor=black&labelColor=0D0D0D) ![rr](https://img.shields.io/badge/rr--native-stack-FFB300?style=flat-square&labelColor=0D0D0D) ![Spectre.Console](https://img.shields.io/badge/Spectre.Console-powered-00CFFF?style=flat-square&labelColor=0D0D0D)
 
-> A terminal UI for managing your self-hosted media suite — WSL2, Docker,
-> and all your *arr services from a single keyboard-driven dashboard.
-
-Built for the *arr stack. Fits right in beside Sonarr, Radarr, Prowlarr.
+> A lightweight Terminal UI for managing your self-hosted media suite. Control WSL2, Docker containers, and your entire *arr stack from a single, high-performance dashboard.
 
 ---
 
-## What It Does
+## Key Features
 
-- **WSL2 controls** — Start, stop and restart your WSL2 distro from Windows
-- **Global resources** — Real-time aggregate CPU and Memory usage for your entire stack
-- **Container dashboard** — Live status of all your Docker containers
-- **Resource gauges** — Staggered CPU and memory stats per container
-- **Container actions** — Start, stop, restart any container instantly
-- **Log viewer** — Tail and filter logs per container without leaving the TUI
-- **Cross-platform** — Runs on Windows (with or without WSL2) and Linux natively
+- 🟦 **WSL2 Management** — Start, stop and restart your WSL2 distro directly from Windows.
+- 🔸 **Global Resources** — Real-time aggregate CPU and Memory tracking for your entire stack.
+- 🟩 **Container Dashboard** — Live status, image details, and instant management (Start/Stop/Restart).
+- 🔄 **Dynamic Scrolling** — Smoothly navigate large container lists with automatic pagination and scroll indicators.
+- 🔹 **Log Viewer** — Real-time log tailing with keyword filtering and high-speed sanitization.
+- 🔄 **Event-Driven TUI** — Zero-lag input response and optimized background polling for a snappy experience.
 
 ---
 
-## Screenshots
+## Quick Start
+
+### Installation
+
+**Option A — Scoop (Windows)**
+```powershell
+scoop bucket add phellams https://gitlab.com/phellams/scoop-bucket.git
+scoop install simplerr
+```
+
+**Option B — Homebrew (macOS / Linux)**
+```bash
+brew tap phellams/tap
+brew install simplerr
+```
+
+**Option C — One-Liner Installers**
+- **Windows:** `irm https://raw.githubusercontent.com/phellams/simplerr/main/install.ps1 | iex`
+- **Linux:** `curl -fsSL https://raw.githubusercontent.com/phellams/simplerr/main/install.sh | bash`
+
+---
+
+## Dashboard Preview
 
 ```text
 ╔══════════════════════════════════════════════════════════════════╗
@@ -37,210 +55,42 @@ Built for the *arr stack. Fits right in beside Sonarr, Radarr, Prowlarr.
 ║  1   📺 Plex Media Server  ● Running  ██░░░░░░░░░░ 12%  █░░ 1.2GB║
 ║  2   📡 Sonarr (TV)        ● Running  █░░░░░░░░░░░  4%  █░░ 300MB║
 ║> 3   🎬 Radarr (Movies)    ● Running  █░░░░░░░░░░░  3%  █░░ 280MB║
-║  4   🔽 qBittorrent        ○ Stopped                             ║
-║  5   🔍 Prowlarr           ● Running  ░░░░░░░░░░░░  1%  ░░░ 120MB║
-╠══════════════════════════════════════════════════════════════════╣
-║  Selected: 🎬 Radarr (Movies)                                    ║
-║  [ S ] Start   [ T ] Stop   [ R ] Restart   [ L ] Logs           ║
-╠══════════════════════════════════════════════════════════════════╣
-║  [↑↓] Navigate  [F1] WSL Start  [F2] WSL Stop  [F3] WSL Restart  ║
-║  [S] Start  [T] Stop  [R] Restart  [L] Logs  [?] Help  [Q] Quit  ║
 ╚══════════════════════════════════════════════════════════════════╝
+   Containers (1-10 of 25)  [↑/↓] to Scroll
 ```
-
----
-
-## Requirements
-
-### Windows
-- Windows 10 21H2 or later / Windows 11
-- [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) (optional,
-  but required for WSL controls)
-- Docker running inside WSL2 **or** Docker Desktop
-- .NET 8 runtime (not required if using the self-contained binary)
-
-### Linux
-- Docker installed and running
-- Current user in the `docker` group  
-  (`sudo usermod -aG docker $USER` then log out and back in)
-- .NET 8 runtime (not required if using the self-contained binary)
-
----
-
-## Installation
-
-### Option A — Installer Script (Recommended)
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/phellams/simplerr/main/install.ps1 | iex
-```
-
-**Linux (bash):**
-```bash
-curl -fsSL https://raw.githubusercontent.com/phellams/simplerr/main/install.sh | bash
-```
-
-### Option B — Manual
-
-1. Download the latest release for your platform from the
-   [Releases](https://github.com/phellams/simplerr/releases) page
-2. Extract and place `simplerr.exe` (Windows) or `simplerr` (Linux)
-   somewhere on your PATH
-3. Run it
-
-### Option C — Build From Source
-
-```bash
-git clone https://github.com/phellams/simplerr.git
-cd simplerr
-
-# Windows
-./build-windows.sh
-
-# Linux
-./build-linux.sh
-```
-
-Binaries output to `./dist/`.
 
 ---
 
 ## Configuration
 
-On first run, Simplerr creates a default config file at:
-
-| Platform | Path |
-|---|---|
-| Windows | `C:\Users\<you>\.phellams\simplerr\config.json` |
-| Linux | `/home/<you>/.phellams/simplerr/config.json` |
-
-### Full Config Reference
+Simplerr automatically creates a config at `~/.phellams/simplerr/config.json`.
 
 ```json
 {
-  "wsl": {
-    "enabled": true,
-    "distroName": "Ubuntu-Media"
-  },
-  "docker": {
-    "composePath": "/home/user/media-stack",
-    "pollIntervalSeconds": 5,
-    "statsPollIntervalSeconds": 3
-  },
+  "wsl": { "enabled": true, "distroName": "Ubuntu-Media" },
+  "docker": { "pollIntervalSeconds": 5 },
   "services": [
-    {
-      "name": "plex",
-      "icon": "📺",
-      "friendlyName": "Plex Media Server"
-    },
-    {
-      "name": "sonarr",
-      "icon": "📡",
-      "friendlyName": "Sonarr (TV)"
-    },
-    {
-      "name": "radarr",
-      "icon": "🎬",
-      "friendlyName": "Radarr (Movies)"
-    },
-    {
-      "name": "qbittorrent",
-      "icon": "🔽",
-      "friendlyName": "qBittorrent"
-    },
-    {
-      "name": "prowlarr",
-      "icon": "🔍",
-      "friendlyName": "Prowlarr"
-    }
+    { "name": "plex", "icon": "📺", "friendlyName": "Plex Media Server" },
+    { "name": "sonarr", "icon": "📡" }
   ]
 }
 ```
 
-### Config Options
-
-#### `wsl`
-| Field | Type | Description |
-|---|---|---|
-| `enabled` | bool | Show WSL controls. Set `false` on Linux or if not using WSL2 |
-| `distroName` | string | Exact name of your WSL2 distro (`wsl --list` to find it) |
-
-#### `docker`
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `composePath` | string | — | Path to your `docker-compose.yml` directory (informational for now) |
-| `pollIntervalSeconds` | int | `5` | How often to refresh container list |
-| `statsPollIntervalSeconds` | int | `3` | Delay between staggered stats polls per container |
-
-#### `services`
-| Field | Type | Description |
-|---|---|---|
-| `name` | string | Container name (partial match supported) |
-| `icon` | string | Emoji or character shown in the dashboard |
-| `friendlyName` | string | Human-readable label shown in the UI |
-
 ---
 
-## Keyboard Reference
+## Keyboard Shortcuts
 
-### Global
 | Key | Action |
 |---|---|
-| `↑` / `↓` | Navigate container list |
-| `Q` | Quit Simplerr |
-| `?` / `H` | Show/Hide help overlay |
-
-### WSL Controls *(Windows only)*
-| Key | Action |
-|---|---|
-| `F1` | Start WSL distro |
-| `F2` | Stop WSL (shutdown) |
-| `F3` | Restart WSL distro |
-
-### Container Actions
-| Key | Action |
-|---|---|
-| `S` | Start selected container |
-| `T` | Stop selected container |
-| `R` | Restart selected container |
-| `L` | Open log viewer |
-
-### Log Viewer
-| Key | Action |
-|---|---|
-| `F` | Set filter string |
-| `C` | Clear filter |
-| `Q` / `Esc` | Return to dashboard |
-
----
-
-## Roadmap
-
-- [x] Help overlay (`?`)
-- [x] Global resources view
-- [x] Performance optimizations (event-driven TUI)
-- [ ] Docker Compose `up` / `down` support
-- [ ] Notification on container crash
-- [ ] Config editor inside the TUI
-- [ ] Community service presets (media, dev, home-lab)
-- [ ] .NET 10 + AOT build target
-- [ ] macOS support
-
----
-
-## Contributing
-
-PRs welcome. The codebase is intentionally small and layered — adding a new
-platform or service backend means implementing one interface.
-
-```text
-IWslService   → new platform host support
-IDockerService → new container runtime support
-```
+| `↑` / `↓` | Navigate container list (Auto-Scroll) |
+| `S` / `T` / `R` | Start / Stop / Restart selected service |
+| `L` | View real-time logs |
+| `F` | Set log filter / `C` Clear filter |
+| `?` / `H` | Show Help Overlay |
+| `Q` / `Esc` | Back / Quit |
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+Distributed under the [MIT License](LICENSE). Built with ❤️ for the self-hosted community.

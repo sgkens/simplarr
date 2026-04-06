@@ -154,7 +154,7 @@ publish_scoop:
     - "export PACKAGE_REGISTRY_URL=\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG}\""
   script:
     - "echo \"Generating Scoop manifest...\""
-    - "HASH=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip\" | sha256sum | awk '{print $1}')"
+    - "HASH=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-${CI_COMMIT_TAG}-win-x64.zip\" | sha256sum | awk '{print $1}')"
     - |
       cat << EOF > simplerr.json
       {
@@ -164,14 +164,21 @@ publish_scoop:
         "license": "MIT",
         "architecture": {
           "64bit": {
-            "url": "${PACKAGE_REGISTRY_URL}/simplerr-win-x64.zip",
+            "url": "${PACKAGE_REGISTRY_URL}/simplerr-${CI_COMMIT_TAG}-win-x64.zip",
             "hash": "$HASH",
             "bin": "simplerr.exe"
           }
         }
       }
       EOF
-    - "cat simplerr.json"
+    - "git clone https://project_token:${GITLAB_DEPLOY_TOKEN}@gitlab.com/phellams/scoop-bucket.git"
+    - "cp simplerr.json scoop-bucket/bucket/"
+    - "cd scoop-bucket"
+    - "git config user.name \"simplerr-bot\""
+    - "git config user.email \"bot@simplerr.io\""
+    - "git add bucket/simplerr.json"
+    - "git commit -m \"feat(simplerr): release ${CI_COMMIT_TAG}\""
+    - "git push origin main"
 
 publish_brew:
   stage: deploy
@@ -185,8 +192,8 @@ publish_brew:
     - "export PACKAGE_REGISTRY_URL=\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/simplarr/${CI_COMMIT_TAG}\""
   script:
     - "echo \"Generating Homebrew formula...\""
-    - "HASH_MAC=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz\" | sha256sum | awk '{print $1}')"
-    - "HASH_LINUX=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz\" | sha256sum | awk '{print $1}')"
+    - "HASH_MAC=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-${CI_COMMIT_TAG}-osx-x64.tar.gz\" | sha256sum | awk '{print $1}')"
+    - "HASH_LINUX=$(curl -sL \"${PACKAGE_REGISTRY_URL}/simplerr-${CI_COMMIT_TAG}-linux-x64.tar.gz\" | sha256sum | awk '{print $1}')"
     - |
       cat << EOF > simplerr.rb
       class Simplerr < Formula
@@ -195,10 +202,10 @@ publish_brew:
         version "${CI_COMMIT_TAG#v}"
         
         if OS.mac?
-          url "${PACKAGE_REGISTRY_URL}/simplerr-osx-x64.tar.gz"
+          url "${PACKAGE_REGISTRY_URL}/simplerr-${CI_COMMIT_TAG}-osx-x64.tar.gz"
           sha256 "$HASH_MAC"
         elsif OS.linux?
-          url "${PACKAGE_REGISTRY_URL}/simplerr-linux-x64.tar.gz"
+          url "${PACKAGE_REGISTRY_URL}/simplerr-${CI_COMMIT_TAG}-linux-x64.tar.gz"
           sha256 "$HASH_LINUX"
         end
 
@@ -207,4 +214,12 @@ publish_brew:
         end
       end
       EOF
-    - "cat simplerr.rb"
+    - "git clone https://project_token:${GITLAB_DEPLOY_TOKEN}@gitlab.com/phellams/homebrew-tap.git"
+    - "cp simplerr.rb homebrew-tap/Formula/"
+    - "cd homebrew-tap"
+    - "git config user.name \"simplerr-bot\""
+    - "git config user.email \"bot@simplerr.io\""
+    - "git add Formula/simplerr.rb"
+    - "git commit -m \"feat(simplerr): release ${CI_COMMIT_TAG}\""
+    - "git push origin main"
+
