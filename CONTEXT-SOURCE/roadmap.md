@@ -18,3 +18,4 @@
 - [x] Locale-safe numeric parsing
 - [x] Refined keybindings and modifier robustness
 - [x] Integrated help overlay
+- [x] **v1.0.0 Stable Release**
