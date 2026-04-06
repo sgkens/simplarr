@@ -149,7 +149,7 @@ public class LogViewer
             },
             new Markup(
                 $"Filter: {filterLabel}   " +
-                "[grey][F] Set filter   [C] Clear filter   [Q/Esc] Back[/]"
+                "[grey][[F]] Set filter   [[C]] Clear filter   [[Q/Esc]] Back[/]"
             )
         );
     }

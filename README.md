@@ -12,6 +12,7 @@ Built for the *arr stack. Fits right in beside Sonarr, Radarr, Prowlarr.
 ## What It Does
 
 - **WSL2 controls** — Start, stop and restart your WSL2 distro from Windows
+- **Global resources** — Real-time aggregate CPU and Memory usage for your entire stack
 - **Container dashboard** — Live status of all your Docker containers
 - **Resource gauges** — Staggered CPU and memory stats per container
 - **Container actions** — Start, stop, restart any container instantly
@@ -29,6 +30,8 @@ Built for the *arr stack. Fits right in beside Sonarr, Radarr, Prowlarr.
 ║  ● WSL: Running — Ubuntu-Media                                   ║
 ║  [ F1 ] Start   [ F2 ] Stop   [ F3 ] Restart                     ║
 ╠══════════════════════════════════════════════════════════════════╣
+║  Global Stack Resources: CPU: 22.4%   Memory: 2.1GB / 16.0GB     ║
+╠══════════════════════════════════════════════════════════════════╣
 ║  #   Service              Status     CPU              Memory     ║
 ║  ├─────────────────────────────────────────────────────────────   ║
 ║  1   📺 Plex Media Server  ● Running  ██░░░░░░░░░░ 12%  █░░ 1.2GB║
@@ -41,7 +44,7 @@ Built for the *arr stack. Fits right in beside Sonarr, Radarr, Prowlarr.
 ║  [ S ] Start   [ T ] Stop   [ R ] Restart   [ L ] Logs           ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  [↑↓] Navigate  [F1] WSL Start  [F2] WSL Stop  [F3] WSL Restart  ║
-║  [S] Start  [T] Stop  [R] Restart  [L] Logs  [Q] Quit            ║
+║  [S] Start  [T] Stop  [R] Restart  [L] Logs  [?] Help  [Q] Quit  ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
@@ -177,9 +180,6 @@ On first run, Simplerr creates a default config file at:
 | `icon` | string | Emoji or character shown in the dashboard |
 | `friendlyName` | string | Human-readable label shown in the UI |
 
-> **Tip:** If `services` is empty, Simplerr shows **all** running containers
-> rather than filtering. Useful for exploring a new setup.
-
 ---
 
 ## Keyboard Reference
@@ -189,7 +189,7 @@ On first run, Simplerr creates a default config file at:
 |---|---|
 | `↑` / `↓` | Navigate container list |
 | `Q` | Quit Simplerr |
-| `?` | Show help overlay *(coming soon)* |
+| `?` / `H` | Show/Hide help overlay |
 
 ### WSL Controls *(Windows only)*
 | Key | Action |
@@ -215,56 +215,11 @@ On first run, Simplerr creates a default config file at:
 
 ---
 
-## Typical Media Stack Setup
-
-Simplerr is designed around a Docker Compose media suite running inside WSL2.
-A typical stack it manages well:
-
-| Service | Role |
-|---|---|
-| [Plex](https://www.plex.tv/) | Media server and streaming |
-| [Sonarr](https://sonarr.tv/) | TV show management |
-| [Radarr](https://radarr.video/) | Movie management |
-| [Prowlarr](https://github.com/Prowlarr/Prowlarr) | Indexer manager |
-| [qBittorrent](https://www.qbittorrent.org/) | Torrent client |
-| [Overseerr](https://overseerr.dev/) | Request management |
-| [Tdarr](https://home.tdarr.io/) | Media transcoding |
-
-Add any of these to your `services` config array and Simplerr will pick
-them up automatically by name.
-
----
-
-## Troubleshooting
-
-### "No containers found"
-- Confirm Docker is running: `docker ps` in a terminal
-- On Windows, confirm Docker is accessible from PowerShell (not just WSL)
-- Check your `services[].name` values match your actual container names
-  (`docker ps --format "{{.Names}}"` to list them)
-
-### WSL controls not showing
-- Confirm `wsl.enabled` is `true` in your config
-- Confirm Simplerr is running on Windows, not inside WSL itself
-- Run `wsl --list` in PowerShell to verify your distro name matches config
-
-### Stats showing `--`
-- Stats populate with a slight delay due to staggered polling
-- If they never appear, confirm `docker stats --no-stream <id>` works
-  in your terminal
-
-### Permission denied (Linux)
-- Add your user to the docker group:
-  ```bash
-  sudo usermod -aG docker $USER
-  ```
-  Then log out and back in.
-
----
-
 ## Roadmap
 
-- [ ] Help overlay (`?`)
+- [x] Help overlay (`?`)
+- [x] Global resources view
+- [x] Performance optimizations (event-driven TUI)
 - [ ] Docker Compose `up` / `down` support
 - [ ] Notification on container crash
 - [ ] Config editor inside the TUI
@@ -286,13 +241,6 @@ IDockerService → new container runtime support
 
 ---
 
-## Name
-
-*Simplerr* is a nod to the \*arr stack (Sonarr, Radarr, Prowlarr...).
-It does one thing — makes managing all of them simpler.
-
----
-
 ## License
 
-MIT — do whatever you like with it.
+This project is licensed under the [MIT License](LICENSE).
