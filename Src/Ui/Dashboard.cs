@@ -179,6 +179,15 @@ public class Dashboard
 
     private IRenderable RenderContainerTable()
     {
+        var containers = _state.Containers;
+        
+        // Calculate available space
+        var reservedHeight = 3 + (_wsl.IsSupported ? 5 : 0) + 3 + 5 + 3 + 4; // Panels + Table Header/Borders
+        var terminalHeight = AnsiConsole.Console.Profile.Height;
+        var pageSize = Math.Max(5, terminalHeight - reservedHeight);
+        
+        _state.UpdateScroll(pageSize);
+
         var table = new Table()
             .BorderColor(Color.Grey)
             .Border(TableBorder.Rounded)
@@ -188,8 +197,6 @@ public class Dashboard
             .AddColumn(new TableColumn("[white]Status[/]").Width(12))
             .AddColumn(new TableColumn("[white]CPU[/]").Width(22))
             .AddColumn(new TableColumn("[white]Memory[/]").Width(30));
-
-        var containers = _state.Containers;
 
         if (containers.Count == 0)
         {
@@ -208,10 +215,14 @@ public class Dashboard
             };
         }
 
-        for (var i = 0; i < containers.Count; i++)
+        var visibleCount = Math.Min(pageSize, containers.Count);
+        for (var i = 0; i < visibleCount; i++)
         {
-            var c = containers[i];
-            var isSelected = i == _state.SelectedIndex;
+            var actualIndex = _state.ScrollOffset + i;
+            if (actualIndex >= containers.Count) break;
+
+            var c = containers[actualIndex];
+            var isSelected = actualIndex == _state.SelectedIndex;
             var friendly = GetFriendlyName(c);
 
             var (statusIcon, statusColor) = c.IsRunning
@@ -239,7 +250,7 @@ public class Dashboard
                 : "[grey]--[/]";
 
             table.AddRow(
-                new Markup($"{prefix}[grey]{i + 1}[/]"),
+                new Markup($"{prefix}[grey]{actualIndex + 1}[/]"),
                 new Markup($"{nameDisplay}"),
                 new Markup(statusDisplay),
                 new Markup($"{cpuBar} {cpuLabel}"),
@@ -247,9 +258,16 @@ public class Dashboard
             );
         }
 
+        // Add scroll indicator if needed
+        var headerText = " Containers ";
+        if (containers.Count > pageSize)
+        {
+            headerText = $" Containers ({_state.ScrollOffset + 1}-{Math.Min(_state.ScrollOffset + pageSize, containers.Count)} of {containers.Count}) ";
+        }
+
         return new Panel(table)
         {
-            Header = new PanelHeader(" Containers "),
+            Header = new PanelHeader(headerText),
             Border = BoxBorder.Rounded,
             Expand = true,
         };

@@ -13,6 +13,7 @@ public class AppState
     public List<ContainerInfo> Containers { get; private set; } = [];
     public Dictionary<string, ContainerStats> Stats { get; private set; } = [];
     public int SelectedIndex { get; private set; } = 0;
+    public int ScrollOffset { get; private set; } = 0;
     public string? StatusMessage { get; private set; }
     public bool IsBusy { get; private set; } = false;
     public bool IsHelpOpen { get; private set; } = false;
@@ -42,6 +43,9 @@ public class AppState
         {
             Containers = containers;
             SelectedIndex = Math.Clamp(SelectedIndex, 0, Math.Max(0, containers.Count - 1));
+            
+            if (ScrollOffset > Math.Max(0, containers.Count - 1))
+                ScrollOffset = 0;
         }
     }
 
@@ -55,7 +59,10 @@ public class AppState
         lock (_lock)
         {
             if (IsHelpOpen) return;
-            SelectedIndex = Math.Max(0, SelectedIndex - 1);
+            if (SelectedIndex > 0)
+            {
+                SelectedIndex--;
+            }
         }
     }
 
@@ -64,7 +71,31 @@ public class AppState
         lock (_lock)
         {
             if (IsHelpOpen) return;
-            SelectedIndex = Math.Min(Containers.Count - 1, SelectedIndex + 1);
+            if (SelectedIndex < Containers.Count - 1)
+            {
+                SelectedIndex++;
+            }
+        }
+    }
+
+    public void UpdateScroll(int pageSize)
+    {
+        lock (_lock)
+        {
+            if (Containers.Count <= pageSize)
+            {
+                ScrollOffset = 0;
+                return;
+            }
+
+            if (SelectedIndex < ScrollOffset)
+            {
+                ScrollOffset = SelectedIndex;
+            }
+            else if (SelectedIndex >= ScrollOffset + pageSize)
+            {
+                ScrollOffset = SelectedIndex - pageSize + 1;
+            }
         }
     }
 

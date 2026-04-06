@@ -6,4 +6,5 @@ dist/
 .vs/
 .vscode/
 *.suo
-.DS_StoreCONTEXT-SOURCE/
+.DS_Store
+CONTEXT-SOURCE/
