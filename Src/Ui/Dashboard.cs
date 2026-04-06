@@ -231,8 +231,8 @@ public class Dashboard
 
             var prefix = isSelected ? "[bold yellow]>[/] " : "  ";
             var nameDisplay = isSelected
-                ? $"[bold yellow]{Markup.Escape(friendly)}[/]"
-                : $"[white]{Markup.Escape(friendly)}[/]";
+                ? $"[bold yellow]{Markup.Escape(friendly.Trim())}[/]"
+                : $"[white]{Markup.Escape(friendly.Trim())}[/]";
 
             var statusDisplay =
                 $"[{statusColor}]{statusIcon} {(c.IsRunning ? "Running" : "Stopped")}[/]";
@@ -250,11 +250,11 @@ public class Dashboard
                 : "[grey]--[/]";
 
             table.AddRow(
-                new Markup($"{prefix}[grey]{actualIndex + 1}[/]"),
-                new Markup($"{nameDisplay}"),
-                new Markup(statusDisplay),
-                new Markup($"{cpuBar} {cpuLabel}"),
-                new Markup($"{memBar} {memLabel}")
+                new Markup($"{prefix}[grey]{actualIndex + 1}[/]".Trim()),
+                new Markup(nameDisplay.Trim()),
+                new Markup(statusDisplay.Trim()),
+                new Markup($"{cpuBar} {cpuLabel}".Trim()),
+                new Markup($"{memBar} {memLabel}".Trim())
             );
         }
 
