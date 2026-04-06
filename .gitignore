@@ -1,0 +1,9 @@
+# .gitignore
+bin/
+obj/
+dist/
+*.user
+.vs/
+.vscode/
+*.suo
+.DS_Store
