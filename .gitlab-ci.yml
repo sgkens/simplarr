@@ -171,7 +171,7 @@ publish_scoop:
         }
       }
       EOF
-    - "git clone https://project_token:${GITLAB_DEPLOY_TOKEN}@gitlab.com/phellams/scoop-bucket.git"
+    - "git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/phellams/scoop-bucket.git"
     - "cp simplerr.json scoop-bucket/bucket/"
     - "cd scoop-bucket"
     - "git config user.name \"simplerr-bot\""
@@ -214,7 +214,7 @@ publish_brew:
         end
       end
       EOF
-    - "git clone https://project_token:${GITLAB_DEPLOY_TOKEN}@gitlab.com/phellams/homebrew-tap.git"
+    - "git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/phellams/homebrew-tap.git"
     - "cp simplerr.rb homebrew-tap/Formula/"
     - "cd homebrew-tap"
     - "git config user.name \"simplerr-bot\""
